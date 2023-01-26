@@ -1,39 +1,56 @@
+package com.example.iboost
+
 import android.content.Context
 import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import android.net.NetworkInfo
 import android.os.Build
-import android.telephony.TelephonyManager
+import android.os.Bundle
 import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.TextView
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.iboost.ui.theme.IBoostTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-@RequiresApi(Build.VERSION_CODES.Q)
+class MainActivity : ComponentActivity() {
+    private lateinit var textView: TextView
+    @RequiresApi(Build.VERSION_CODES.Q)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            IBoostTheme {
+                IBoostApp()
+            }
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
 @Preview
 @Composable
 fun IBoostApp() {
     val currentScreen = remember { mutableStateOf(0) }
 
     IBoostTheme {
-        when (0) {
+        when (currentScreen.value) {
             0 -> HomeScreen()
             1 -> BoostScreen()
             2 -> MapScreen()
@@ -61,40 +78,6 @@ fun IBoostApp() {
     }
 }
 
-fun checkNetworkInfo(context: Context) {
-    val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    val activeNetwork: NetworkInfo? = cm.activeNetworkInfo
-    val isConnected: Boolean = activeNetwork?.isConnectedOrConnecting == true
-    val isWiFi: Boolean = cm.getNetworkCapabilities(activeNetwork?.network)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
-    val isMobile: Boolean = cm.getNetworkCapabilities(activeNetwork?.network)?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true
-    val mobileType: String = when (activeNetwork?.subtype) {
-        TelephonyManager.NETWORK_TYPE_GPRS -> "GPRS"
-        TelephonyManager.NETWORK_TYPE_EDGE -> "EDGE"
-        TelephonyManager.NETWORK_TYPE_UMTS -> "UMTS"
-        TelephonyManager.NETWORK_TYPE_HSDPA -> "HSDPA"
-        TelephonyManager.NETWORK_TYPE_HSUPA -> "HSUPA"
-        TelephonyManager.NETWORK_TYPE_HSPA -> "HSPA"
-        TelephonyManager.NETWORK_TYPE_CDMA -> "CDMA"
-        TelephonyManager.NETWORK_TYPE_EVDO_0 -> "EVDO revision 0"
-        TelephonyManager.NETWORK_TYPE_EVDO_A -> "EVDO revision A"
-        TelephonyManager.NETWORK_TYPE_1xRTT -> "1xRTT"
-        TelephonyManager.NETWORK_TYPE_LTE -> "LTE"
-        else -> "Unknown"
-    }
-    val telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-    val carrierFrequency: String = if (telephonyManager.carrierFrequencyInfo != null) {
-        "${telephonyManager.carrierFrequencyInfo.dlBandwidth} Hz"
-    } else {
-        "Not available"
-    }
-    println("Active Network: $activeNetwork")
-    println("Connected: $isConnected")
-    println("WiFi: $isWiFi")
-    println("Mobile: $isMobile")
-    println("Mobile Type: $mobileType")
-    println("Carrier Frequency: $carrierFrequency")
-}
-
 @RequiresApi(Build.VERSION_CODES.Q)
 fun getSignalStrength(context: Context): Int {
     val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -105,12 +88,11 @@ fun getSignalStrength(context: Context): Int {
 
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
-fun SignalStrengthDisplay(context: Context) {
+fun SignalStrengthDisplay() {
+    val context = LocalContext.current
     val signalStrength = remember { mutableStateOf(getSignalStrength(context)) }
-    Column {
-        Text("Signal Strength: ${signalStrength.value} dBm")
-    }
-    launch {
+    val coroutineScope = rememberCoroutineScope()
+    LaunchedEffect(key1 = true) {
         while (true) {
             withContext(Dispatchers.IO) {
                 delay(30_000)
@@ -118,22 +100,42 @@ fun SignalStrengthDisplay(context: Context) {
             signalStrength.value = getSignalStrength(context)
         }
     }
+    Column {
+        Text("Signal Strength: ${signalStrength.value} dBm")
+    }
+
 }
 
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
-fun HomeScreen(context: Context) {
-    checkNetworkInfo(context)
-    SignalStrengthDisplay(context)
+fun HomeScreen() {
+    val context = LocalContext.current
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("Home") })
         },
         content = {
-            Column(modifier = Modifier
-                .fillMaxSize()
-                .padding(it)) {
-                Text("Welcome to the home screen!")
+            Column {
+                val image = painterResource(R.drawable.iboost_2)
+                Box {
+                    Image(painter = image,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentHeight(Alignment.Top),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(it)
+
+                ) {
+                    SignalStrengthDisplay()
+                    Spacer(modifier = Modifier.height(20.dp))
+                }
             }
         }
     )
@@ -152,24 +154,24 @@ fun BoostScreen() {
                     .wrapContentSize(Alignment.Center)
                     .padding(it)
             ) {
-                RoundMetallicRedButton(onClick = { /*TODO*/ })
+                Button(onClick = { /*TODO*/ })
             }
         }
     )
 }
 
 @Composable
-fun RoundMetallicRedButton(
+fun Button(
     modifier: Modifier = Modifier.size(60.dp),
     onClick: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(50.dp),
+        shape = RoundedCornerShape(10.dp),
         color = Color.Red,
-        elevation = 6.dp,
+        elevation = 2.dp,
         modifier = Modifier
-            .width(60.dp)
-            .height(60.dp)
+            .width(70.dp)
+            .height(70.dp)
     ) {
         Text("Boost")
     }
@@ -188,7 +190,6 @@ fun MapScreen() {
             Column(modifier = Modifier
                 .fillMaxSize()
                 .padding(it)) {
-                Text("This is the Map Screen!")
             }
         }
     )
